@@ -148,6 +148,11 @@ typedef struct _mp_state_vm_t {
     mp_obj_base_t *cur_exception;
     #endif
 
+    // current tracing function set by sys.settrace()
+    #if MICROPY_PY_SYS_SETTRACE
+    volatile mp_obj_t tracefunc;
+    #endif
+
     // dictionary for the __main__ module
     mp_obj_dict_t dict_main;
 

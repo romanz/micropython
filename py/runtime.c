@@ -69,6 +69,10 @@ void mp_init(void) {
     mp_init_emergency_exception_buf();
 #endif
 
+#if MICROPY_PY_SYS_SETTRACE
+    MP_STATE_VM(tracefunc) = mp_const_none;
+#endif
+
     #if MICROPY_KBD_EXCEPTION
     // initialise the exception object for raising KeyboardInterrupt
     MP_STATE_VM(mp_kbd_exception).base.type = &mp_type_KeyboardInterrupt;
@@ -599,8 +603,31 @@ mp_obj_t mp_call_function_2(mp_obj_t fun, mp_obj_t arg1, mp_obj_t arg2) {
     return mp_call_function_n_kw(fun, 2, 0, args);
 }
 
+#if MICROPY_PY_SYS_SETTRACE
+void tracefunc(const mp_obj_t frame, const char *event, const mp_obj_t arg)
+{
+    if (MP_STATE_VM(tracefunc) == mp_const_none) {
+        return;
+    }
+    static volatile bool inside = false;
+    if (inside) return;
+    inside = true;
+
+    const mp_obj_t evt = mp_obj_new_str(event, strlen(event));
+    const mp_obj_t args[3] = {frame, evt, arg};
+    mp_call_function_n_kw(MP_STATE_VM(tracefunc), 3, 0, args);
+
+    inside = false;
+}
+#endif
+
 // args contains, eg: arg0  arg1  key0  value0  key1  value1
 mp_obj_t mp_call_function_n_kw(mp_obj_t fun_in, size_t n_args, size_t n_kw, const mp_obj_t *args) {
+
+#if MICROPY_PY_SYS_SETTRACE
+    tracefunc(mp_const_none, "call", mp_const_none);
+#endif
+
     // TODO improve this: fun object can specify its type and we parse here the arguments,
     // passing to the function arrays of fixed and keyword arguments
 
