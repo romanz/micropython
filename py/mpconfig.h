@@ -465,6 +465,10 @@
 #define MICROPY_STACK_CHECK (0)
 #endif
 
+#ifndef MICROPY_PY_SYS_PROFILING
+#define MICROPY_PY_SYS_PROFILING (0)
+#endif
+
 // Whether to have an emergency exception buffer
 #ifndef MICROPY_ENABLE_EMERGENCY_EXCEPTION_BUF
 #define MICROPY_ENABLE_EMERGENCY_EXCEPTION_BUF (0)
@@ -1372,6 +1376,10 @@ typedef double mp_float_t;
 # define MP_HTOBE32(x) (x)
 # define MP_BE32TOH(x) (x)
 #endif
+#endif
+
+#if MICROPY_PY_SYS_PROFILING && !MICROPY_PERSISTENT_CODE_SAVE
+#error "Profiling requires MICROPY_PERSISTENT_CODE_SAVE to be enabled"
 #endif
 
 #endif // MICROPY_INCLUDED_PY_MPCONFIG_H
