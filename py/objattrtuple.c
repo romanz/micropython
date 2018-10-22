@@ -75,7 +75,11 @@ mp_obj_t mp_obj_new_attrtuple(const qstr *fields, size_t n, const mp_obj_t *item
     o->base.type = &mp_type_attrtuple;
     o->len = n;
     for (size_t i = 0; i < n; i++) {
-        o->items[i] = items[i];
+        if (items) {
+            o->items[i] = items[i];
+        } else {
+            o->items[i] = mp_const_false;
+        }
     }
     o->items[n] = MP_OBJ_FROM_PTR(fields);
     return MP_OBJ_FROM_PTR(o);
