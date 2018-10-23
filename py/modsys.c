@@ -35,6 +35,11 @@
 #include "py/smallint.h"
 #include "py/runtime.h"
 
+#if MICROPY_PY_SYS_PROFILING
+#include "py/objmodule.h"
+#include "py/profiling.h"
+#endif
+
 #if MICROPY_PY_SYS
 
 #include "genhdr/mpversion.h"
@@ -92,6 +97,15 @@ STATIC const MP_DEFINE_STR_OBJ(platform_obj, MICROPY_PY_SYS_PLATFORM);
 
 // exit([retval]): raise SystemExit, with optional argument given to the exception
 STATIC mp_obj_t mp_sys_exit(size_t n_args, const mp_obj_t *args) {
+
+    #if MICROPY_PY_SYS_PROFILING
+    if (mp_obj_is_callable(MP_STATE_VM(exitfunc))) {
+        mp_obj_t f = MP_STATE_VM(exitfunc);
+        MP_STATE_VM(exitfunc) = mp_const_none;
+        mp_call_function_0(f);
+    }
+    #endif
+
     mp_obj_t exc;
     if (n_args == 0) {
         exc = mp_obj_new_exception(&mp_type_SystemExit);
@@ -147,6 +161,65 @@ STATIC mp_obj_t mp_sys_getsizeof(mp_obj_t obj) {
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_sys_getsizeof_obj, mp_sys_getsizeof);
 #endif
 
+#if MICROPY_PY_SYS_PROFILING
+// prof_mode([mode]): Optionaly set the profiling mode and return the previous.
+STATIC mp_obj_t mp_sys_prof_mode(size_t n_args, const mp_obj_t *args) {
+
+    mp_obj_t prev = MP_OBJ_NEW_SMALL_INT(MP_STATE_VM(prof_mode));
+    if (n_args > 0 && MP_OBJ_IS_INT(args[0])) {
+        MP_STATE_VM(prof_mode) = mp_obj_get_int(args[0]);
+    }
+
+    return prev;
+}
+MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mp_sys_prof_mode_obj, 0, 1, mp_sys_prof_mode);
+
+// settrace(tracefunc): Set the system’s trace function.
+STATIC mp_obj_t mp_sys_settrace(mp_obj_t obj) {
+
+    if (mp_obj_is_callable(obj)) {
+        MP_STATE_THREAD(prof_instr_tick_callback) = obj;
+    } else {
+        MP_STATE_THREAD(prof_instr_tick_callback) = mp_const_none;
+        MP_STATE_THREAD(prof_instr_tick_callback_is_executing) = false;
+    }
+
+    return mp_const_none;
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mp_sys_settrace_obj, mp_sys_settrace);
+
+// atexit(callback): Callback is called when sys.exit is called.
+STATIC mp_obj_t mp_sys_atexit(mp_obj_t obj) {
+
+    if (mp_obj_is_callable(obj)) {
+        MP_STATE_VM(exitfunc) = obj;
+    } else {
+        MP_STATE_VM(exitfunc) = mp_const_none;
+    }
+    return mp_const_none;
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mp_sys_atexit_obj, mp_sys_atexit);
+
+// bytecode(modulename): Get the module's profiling bytecode info.
+STATIC mp_obj_t mp_sys_bytecode(mp_obj_t obj) {
+
+    mp_obj_type_t *type = mp_obj_get_type(obj);
+    if (type != &mp_type_str) {
+        return mp_const_none;
+    }
+
+    mp_obj_str_t *module_name = obj;
+    mp_obj_t module = mp_module_get(mp_obj_str_get_qstr(module_name));
+    if (!module) {
+        return mp_const_none;
+    }
+
+    return prof_module_bytecode(module);
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mp_sys_bytecode_obj, mp_sys_bytecode);
+
+#endif // MICROPY_PY_SYS_PROFILING
+
 STATIC const mp_rom_map_elem_t mp_module_sys_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_sys) },
 
@@ -179,6 +252,13 @@ STATIC const mp_rom_map_elem_t mp_module_sys_globals_table[] = {
 
     #if MICROPY_PY_SYS_EXIT
     { MP_ROM_QSTR(MP_QSTR_exit), MP_ROM_PTR(&mp_sys_exit_obj) },
+    #endif
+
+    #if MICROPY_PY_SYS_PROFILING
+    { MP_ROM_QSTR(MP_QSTR_prof_mode), MP_ROM_PTR(&mp_sys_prof_mode_obj) },
+    { MP_ROM_QSTR(MP_QSTR_settrace), MP_ROM_PTR(&mp_sys_settrace_obj) },
+    { MP_ROM_QSTR(MP_QSTR_bytecode), MP_ROM_PTR(&mp_sys_bytecode_obj) },
+    { MP_ROM_QSTR(MP_QSTR_atexit), MP_ROM_PTR(&mp_sys_atexit_obj) },
     #endif
 
     #if MICROPY_PY_SYS_STDFILES
