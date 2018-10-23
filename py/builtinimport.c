@@ -35,6 +35,7 @@
 #include "py/runtime.h"
 #include "py/builtin.h"
 #include "py/frozenmod.h"
+#include "py/profiling.h"
 
 #if MICROPY_DEBUG_VERBOSE // print debugging info
 #define DEBUG_PRINT (1)
@@ -166,6 +167,12 @@ STATIC void do_execute_raw_code(mp_obj_t module_obj, mp_raw_code_t *raw_code) {
     nlr_buf_t nlr;
     if (nlr_push(&nlr) == 0) {
         mp_obj_t module_fun = mp_make_function_from_raw_code(raw_code, MP_OBJ_NULL, MP_OBJ_NULL);
+
+        #if MICROPY_PY_SYS_PROFILING
+        if (MP_STATE_VM(prof_mode)) {
+            prof_module_parse_store(module_fun);
+        }
+        #endif
         mp_call_function_0(module_fun);
 
         // finish nlr block, restore context

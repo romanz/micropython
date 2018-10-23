@@ -45,6 +45,7 @@
 #include "py/stackctrl.h"
 #include "py/mphal.h"
 #include "py/mpthread.h"
+#include "py/profiling.h"
 #include "extmod/misc.h"
 #include "genhdr/mpversion.h"
 #include "input.h"
@@ -138,6 +139,12 @@ STATIC int execute_from_lexer(int source_kind, const void *source, mp_parse_inpu
         mp_obj_t module_fun = mp_compile(&parse_tree, source_name, emit_opt, is_repl);
 
         if (!compile_only) {
+            #if MICROPY_PY_SYS_PROFILING
+            if (MP_STATE_VM(prof_mode)) {
+                prof_module_parse_store(module_fun);
+            }
+            #endif
+            
             // execute it
             mp_call_function_0(module_fun);
             // check for pending exception
