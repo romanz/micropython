@@ -311,6 +311,9 @@ STATIC int usage(char **argv) {
 "Options:\n"
 "-v : verbose (trace various operations); can be multiple\n"
 "-O[N] : apply bytecode optimizations of level N\n"
+#if MICROPY_PY_SYS_PROFILING
+"-P : enable profiling (settrace)\n"
+#endif
 "\n"
 "Implementation specific options (-X):\n", argv[0]
 );
@@ -592,6 +595,10 @@ MP_NOINLINE int main_(int argc, char **argv) {
             #if MICROPY_DEBUG_PRINTERS
             } else if (strcmp(argv[a], "-v") == 0) {
                 mp_verbose_flag++;
+            #endif
+            #if MICROPY_PY_SYS_PROFILING
+            } else if (strcmp(argv[a], "-P") == 0) {
+                MP_STATE_VM(prof_mode) = 1;
             #endif
             } else if (strncmp(argv[a], "-O", 2) == 0) {
                 if (unichar_isdigit(argv[a][2])) {
