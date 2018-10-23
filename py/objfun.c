@@ -278,10 +278,22 @@ STATIC mp_obj_t fun_bc_call(mp_obj_t self_in, size_t n_args, size_t n_kw, const 
 
     INIT_CODESTATE(code_state, self, n_args, n_kw, args);
 
+    #if MICROPY_PY_SYS_PROFILING
+    code_state->frame = mp_const_false;
+    code_state->prev = MP_STATE_THREAD(prof_code_state);
+    MP_STATE_THREAD(prof_code_state) = code_state;
+    #endif
+
     // execute the byte code with the correct globals context
     mp_globals_set(self->globals);
     mp_vm_return_kind_t vm_return_kind = mp_execute_bytecode(code_state, MP_OBJ_NULL);
     mp_globals_set(code_state->old_globals);
+
+    #if MICROPY_PY_SYS_PROFILING
+    if (MP_STATE_THREAD(prof_code_state) && ((mp_code_state_t*)MP_STATE_THREAD(prof_code_state))->prev) {
+        MP_STATE_THREAD(prof_code_state) = ((mp_code_state_t*)MP_STATE_THREAD(prof_code_state))->prev;
+    }
+    #endif
 
 #if VM_DETECT_STACK_OVERFLOW
     if (vm_return_kind == MP_VM_RETURN_NORMAL) {

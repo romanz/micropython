@@ -117,10 +117,23 @@ mp_vm_return_kind_t mp_obj_gen_resume(mp_obj_t self_in, mp_obj_t send_value, mp_
             *self->code_state.sp = send_value;
         }
     }
+
+    #if MICROPY_PY_SYS_PROFILING
+    (&self->code_state)->frame = mp_const_false;
+    (&self->code_state)->prev = MP_STATE_THREAD(prof_code_state);
+    MP_STATE_THREAD(prof_code_state) = (&self->code_state);
+    #endif
+
     mp_obj_dict_t *old_globals = mp_globals_get();
     mp_globals_set(self->globals);
     mp_vm_return_kind_t ret_kind = mp_execute_bytecode(&self->code_state, throw_value);
     mp_globals_set(old_globals);
+
+    #if MICROPY_PY_SYS_PROFILING
+    if (MP_STATE_THREAD(prof_code_state) && ((mp_code_state_t*)MP_STATE_THREAD(prof_code_state))->prev) {
+        MP_STATE_THREAD(prof_code_state) = ((mp_code_state_t*)MP_STATE_THREAD(prof_code_state))->prev;
+    }
+    #endif
 
     switch (ret_kind) {
         case MP_VM_RETURN_NORMAL:

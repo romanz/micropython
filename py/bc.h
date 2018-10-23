@@ -80,8 +80,11 @@ typedef struct _mp_code_state_t {
     // bit 0 is saved currently_in_except_block value
     mp_exc_stack_t *exc_sp;
     mp_obj_dict_t *old_globals;
-    #if MICROPY_STACKLESS
+    #if MICROPY_STACKLESS || MICROPY_PY_SYS_PROFILING
     struct _mp_code_state_t *prev;
+    #endif
+    #if MICROPY_PY_SYS_PROFILING
+    mp_obj_t frame;
     #endif
     // Variable-length
     mp_obj_t state[0];
