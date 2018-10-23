@@ -34,6 +34,7 @@
 #include "py/runtime.h"
 #include "py/bc0.h"
 #include "py/bc.h"
+#include "py/profiling.h"
 
 #if 0
 #define TRACE(ip) printf("sp=%d ", (int)(sp - &code_state->state[0] + 1)); mp_bytecode_print2(ip, 1, code_state->fun_bc->const_table);
@@ -110,6 +111,19 @@
     exc_sp--; /* pop back to previous exception handler */ \
     CLEAR_SYS_EXC_INFO() /* just clear sys.exc_info(), not compliant, but it shouldn't be used in 1st place */
 
+#if MICROPY_PY_SYS_PROFILING
+#define PROFILING_BLOCK(isException) \
+if ( true \
+    && MP_STATE_VM(prof_mode) \
+    && mp_obj_is_callable(MP_STATE_THREAD(prof_instr_tick_callback)) \
+    && MP_STATE_THREAD(prof_instr_tick_callback_is_executing) == false \
+){ \
+    prof_instr_tick(code_state, isException); \
+}
+#else
+#define PROFILING_BLOCK(isException)
+#endif
+
 // fastn has items in reverse order (fastn[0] is local[0], fastn[-1] is local[1], etc)
 // sp points to bottom of stack which grows up
 // returns:
@@ -130,6 +144,7 @@ mp_vm_return_kind_t mp_execute_bytecode(mp_code_state_t *code_state, volatile mp
     #define DISPATCH() do { \
         TRACE(ip); \
         MARK_EXC_IP_GLOBAL(); \
+        PROFILING_BLOCK(false); \
         goto *entry_table[*ip++]; \
     } while (0)
     #define DISPATCH_WITH_PEND_EXC_CHECK() goto pending_exception_check
@@ -200,6 +215,7 @@ dispatch_loop:
                 DISPATCH();
 #else
                 TRACE(ip);
+                PROFILING_BLOCK(false);
                 MARK_EXC_IP_GLOBAL();
                 switch (*ip++) {
 #endif
@@ -1347,6 +1363,8 @@ exception_handler:
             #if MICROPY_PY_SYS_EXC_INFO
             MP_STATE_VM(cur_exception) = nlr.ret_val;
             #endif
+
+            PROFILING_BLOCK(true);
 
             #if SELECTIVE_EXC_IP
             // with selective ip, we store the ip 1 byte past the opcode, so move ptr back
