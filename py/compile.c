@@ -36,6 +36,10 @@
 #include "py/runtime.h"
 #include "py/asmbase.h"
 
+#if MICROPY_PY_SYS_PROFILING
+#include "py/objfun.h"
+#endif
+
 #if MICROPY_ENABLE_COMPILER
 
 // TODO need to mangle __attr names
@@ -3508,7 +3512,13 @@ mp_raw_code_t *mp_compile_to_raw_code(mp_parse_tree_t *parse_tree, qstr source_f
 mp_obj_t mp_compile(mp_parse_tree_t *parse_tree, qstr source_file, uint emit_opt, bool is_repl) {
     mp_raw_code_t *rc = mp_compile_to_raw_code(parse_tree, source_file, emit_opt, is_repl);
     // return function that executes the outer module
-    return mp_make_function_from_raw_code(rc, MP_OBJ_NULL, MP_OBJ_NULL);
+    mp_obj_t fun = mp_make_function_from_raw_code(rc, MP_OBJ_NULL, MP_OBJ_NULL);
+
+    #if MICROPY_PY_SYS_PROFILING
+    ((mp_obj_fun_bc_t *)MP_OBJ_TO_PTR(fun))->rc = rc;
+    #endif
+
+    return fun;
 }
 
 #endif // MICROPY_ENABLE_COMPILER
