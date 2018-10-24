@@ -88,10 +88,10 @@ STATIC const byte *opcode_decode(const byte *ip, const mp_uint_t *const_table, m
     mp_obj_t obj;
     qstr qst;
 
-    instruction->opname = MP_OBJ_NULL;
-    instruction->arg = MP_OBJ_NULL;
-    instruction->argval = MP_OBJ_NULL;
-    instruction->cache = MP_OBJ_NULL;
+    instruction->opname = mp_const_none;
+    instruction->arg = mp_const_none;
+    instruction->argval = mp_const_none;
+    instruction->cache = mp_const_none;
 
     switch (*ip++) {
         case MP_BC_LOAD_CONST_FALSE:
