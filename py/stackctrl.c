@@ -41,8 +41,36 @@ mp_uint_t mp_stack_usage(void) {
     volatile int stack_dummy;
     return MP_STATE_THREAD(stack_top) - (char*)&stack_dummy;
 }
-
 #if MICROPY_STACK_CHECK
+
+// Fill stack space with this unusual value.
+const char MP_MAX_STACK_USAGE_SENTINEL_BYTE = 0xEE;
+
+// Fill stack space down toward the stack limit with a known unusual value.
+void mp_stack_fill_with_sentinel(void) {
+    // Force routine to not be inlined. Better guarantee than MP_NOINLINE for -flto.
+    __asm volatile ("");
+    volatile char* volatile p;
+    // Start filling stack just below the last variable in the current stack frame, which is p.
+    // Continue until we've hit the bottom of the stack (lowest address, logical "ceiling" of stack).
+    p = (char *) (&p - 1);
+    while(p >= MP_STATE_THREAD(stack_top) - MP_STATE_THREAD(stack_limit)) {
+        *p-- = MP_MAX_STACK_USAGE_SENTINEL_BYTE;
+    }
+}
+
+mp_uint_t mp_stack_limit(void) {
+    return MP_STATE_THREAD(stack_limit);
+}
+
+mp_uint_t mp_max_stack_usage(void) {
+    // Start at stack limit and move up.
+    // Untouched stack was filled with a sentinel value.
+    // Stop at first non-sentinel byte.
+    const char* p = MP_STATE_THREAD(stack_top) - mp_stack_limit();
+    while (*p++ == MP_MAX_STACK_USAGE_SENTINEL_BYTE) { }
+    return MP_STATE_THREAD(stack_top) - p;
+}
 
 void mp_stack_set_limit(mp_uint_t limit) {
     MP_STATE_THREAD(stack_limit) = limit;

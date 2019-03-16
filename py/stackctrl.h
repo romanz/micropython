@@ -34,6 +34,9 @@ mp_uint_t mp_stack_usage(void);
 
 #if MICROPY_STACK_CHECK
 
+void mp_stack_fill_with_sentinel(void);
+mp_uint_t mp_max_stack_usage(void);
+mp_uint_t mp_stack_limit();
 void mp_stack_set_limit(mp_uint_t limit);
 void mp_stack_check(void);
 #define MP_STACK_CHECK() mp_stack_check()
@@ -42,6 +45,9 @@ void mp_stack_check(void);
 
 #define mp_stack_set_limit(limit)
 #define MP_STACK_CHECK()
+#define mp_stack_fill_with_sentinel(void);
+#define mp_max_stack_usage() 0
+#define mp_stack_limit() 0
 
 #endif
 
